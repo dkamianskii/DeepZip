@@ -13,29 +13,21 @@
 # https://www.nayuki.io/page/reference-arithmetic-coding
 # https://github.com/nayuki/Reference-arithmetic-coding
 #
- 
-from sklearn.metrics import mean_squared_error
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.preprocessing import OneHotEncoder
-import keras
-from keras.models import Sequential
-from keras.models import model_from_json
-from keras.layers import Dense
-from keras.layers import LSTM, Flatten, CuDNNLSTM
-from keras.layers.embeddings import Embedding
-from keras.models import load_model
-from keras.layers.normalization import BatchNormalization
-import tensorflow as tf
+
+
 import numpy as np
 import argparse
-import contextlib
 import arithmeticcoding_fast
 import json
-from tqdm import tqdm
 import struct
 import models
 import tempfile
 import shutil
+import os
+os.environ["KERAS_BACKEND"] = "torch"
+import keras
+
+from utils import load_h5_weights
 
 
 parser = argparse.ArgumentParser(description='Input')
@@ -74,7 +66,7 @@ def create_data(rows, p=0.5):
 
 def predict_lstm(len_series, timesteps, bs, alphabet_size, model_name, final_step=False):
         model = getattr(models, model_name)(bs, timesteps, alphabet_size)
-        model.load_weights(args.model_weights_file)
+        model = load_h5_weights(model, args.model_weights_file)
         
         if not final_step:
                 num_iters = int((len_series)/bs)
@@ -140,7 +132,7 @@ def var_int_decode(f):
 def main():
         args.temp_dir = tempfile.mkdtemp()
         args.temp_file_prefix = args.temp_dir + "/compressed"
-        tf.set_random_seed(42)
+        keras.utils.set_random_seed(42)
         np.random.seed(0)
         f = open(args.input_file_prefix+'.params','r')
         param_dict = json.loads(f.read())

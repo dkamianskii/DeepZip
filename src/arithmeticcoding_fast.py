@@ -6,8 +6,15 @@
 # https://github.com/nayuki/Reference-arithmetic-coding
 # 
 import numpy as np
+import numpy
 import sys
 python3 = sys.version_info.major >= 3
+
+
+def patch_asscalar(a):
+    return a.item()
+
+setattr(numpy, "asscalar", patch_asscalar)
 
 
 # ---- Arithmetic coding core classes ----

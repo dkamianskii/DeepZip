@@ -13,29 +13,24 @@
 # https://www.nayuki.io/page/reference-arithmetic-coding
 # https://github.com/nayuki/Reference-arithmetic-coding
 #
- 
-from sklearn.metrics import mean_squared_error
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.preprocessing import OneHotEncoder
+import os
+
+os.environ["KERAS_BACKEND"] = "torch"
 import keras
-from keras.models import Sequential
-from keras.models import model_from_json
-from keras.layers import Dense
-from keras.layers import LSTM, Flatten, CuDNNLSTM
-from keras.layers.embeddings import Embedding
-from keras.models import load_model
-from keras.layers.normalization import BatchNormalization
-import tensorflow as tf
+from sklearn.preprocessing import OneHotEncoder
+
 import numpy as np
 import argparse
-import contextlib
+
 import arithmeticcoding_fast
 import json
-from tqdm import tqdm
 import struct
 import models
 import tempfile
 import shutil
+
+from utils import load_h5_weights
+
 
 parser = argparse.ArgumentParser(description='Input')
 parser.add_argument('-model', action='store', dest='model_weights_file',
@@ -52,9 +47,6 @@ parser.add_argument('-output', action='store',dest='output_file_prefix',
                     help='compressed file name')
 
 args = parser.parse_args()
-from keras import backend as K
-
-
 
 
 def strided_app(a, L, S):  # Window len = L, Stride len/stepsize = S
@@ -66,7 +58,7 @@ def strided_app(a, L, S):  # Window len = L, Stride len/stepsize = S
 
 def predict_lstm(X, y, y_original, timesteps, bs, alphabet_size, model_name, final_step=False):
         model = getattr(models, model_name)(bs, timesteps, alphabet_size)
-        model.load_weights(args.model_weights_file)
+        model = load_h5_weights(model, args.model_weights_file)
         
         if not final_step:
                 num_iters = int((len(X)+timesteps)/bs)
@@ -127,14 +119,14 @@ def var_int_encode(byte_str_len, f):
                 byte_str_len -= 1
 
 def main():
+        keras.utils.set_random_seed(42)
         args.temp_dir = tempfile.mkdtemp()
         args.temp_file_prefix = args.temp_dir + "/compressed"
-        tf.set_random_seed(42)
         np.random.seed(0)
         series = np.load(args.sequence_npy_file)
         series = series.reshape(-1, 1)
-        onehot_encoder = OneHotEncoder(sparse=False)
-        onehot_encoded = onehot_encoder.fit(series)
+        onehot_encoder = OneHotEncoder(sparse_output=False)
+        onehot_encoder.fit(series)
 
         batch_size = args.batch_size
         timesteps = 64

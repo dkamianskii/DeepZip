@@ -19,7 +19,7 @@ do
 
     # Storing the model
     mkdir -p "$model_dir/$basename"
-    model_file="$model_dir/$basename/$1.hdf5"
+    model_file="$model_dir/$basename/$1.weights.h5"
     log_file="$logs_dir/$basename/$1.log.csv"
     output_dir="$compressed_dir/$basename"
     recon_file_name="$output_dir/$1.reconstructed.txt"
@@ -42,16 +42,17 @@ do
     mkdir -p "$logs_dir/$basename" 
     echo "Starting training ..." | tee -a $log_file
     
-    python trainer.py -model_name $1 -d $f -gpu $2 -name $model_file -log_file $log_file 
+    python trainer.py -model_name $1 -d $f -gpu $2 -name $model_file -log_file $log_file
     
     
     # Perform Compression
     echo "Starting Compression ..." | tee -a $log_file
-    /usr/bin/time -v python compressor.py -data $f -data_params $params_file -model $model_file -model_name $1 -output $output_prefix -batch_size 1000 2>&1 | tee -a $log_file 
-    /usr/bin/time -v python decompressor.py -output $recon_file_name -model $model_file -model_name $1 -input_file_prefix $output_prefix -batch_size 1000 2>&1 | tee -a $log_file
+    python compressor.py -data $f -data_params $params_file -model $model_file -model_name $1 -output $output_prefix -batch_size 1000 2>&1 | tee -a $log_file
+    python decompressor.py -output $recon_file_name -model $model_file -model_name $1 -input_file_prefix $output_prefix -batch_size 1000 2>&1 | tee -a $log_file
     cmp $recon_file_name "$original_dir/$basename.txt" >> $log_file
     #echo "- - - - - "
 done
+$SHELL
 
 
 

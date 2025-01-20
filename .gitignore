@@ -7,3 +7,6 @@ data/processed_files_new/*
 data/fasta_files/*
 data/compressed/*
 
+*.pyc
+*.iml
+*.xml

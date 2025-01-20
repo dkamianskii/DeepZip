@@ -1,24 +1,19 @@
-from sklearn.metrics import mean_squared_error
-from sklearn.preprocessing import MinMaxScaler
-from keras.models import Sequential
-from keras.layers import Dense, Bidirectional
-from keras.layers import LSTM, Flatten, Conv1D, LocallyConnected1D, CuDNNLSTM, CuDNNGRU, MaxPooling1D, GlobalAveragePooling1D, GlobalMaxPooling1D
-from math import sqrt
-from keras.layers.embeddings import Embedding
-from keras.callbacks import ModelCheckpoint, EarlyStopping
-# from matplotlib import pyplot
+import os
+
+os.environ["KERAS_BACKEND"] = "torch"
+
 import keras
+import torch
+from keras.src.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
 from sklearn.preprocessing import OneHotEncoder
-from keras.layers.normalization import BatchNormalization
-import tensorflow as tf
+
 import numpy as np
 import argparse
-import os
-from keras.callbacks import CSVLogger
+from keras.src.losses import categorical_crossentropy
 
 import models
 
-tf.set_random_seed(42)
+keras.utils.set_random_seed(42)
 np.random.seed(0)
 
 parser = argparse.ArgumentParser()
@@ -38,10 +33,8 @@ parser.add_argument('-log_file', action='store',
                     dest='log_file',
                     help='Log file')
 
-import keras.backend as K
-
 def loss_fn(y_true, y_pred):
-        return 1/np.log(2) * K.categorical_crossentropy(y_true, y_pred)
+        return 1/np.log(2) * categorical_crossentropy(y_true, y_pred)
 
 def strided_app(a, L, S):  # Window len = L, Stride len/stepsize = S
         nrows = ((a.size - L) // S) + 1
@@ -52,8 +45,8 @@ def strided_app(a, L, S):  # Window len = L, Stride len/stepsize = S
 def generate_single_output_data(file_path,batch_size,time_steps):
         series = np.load(file_path)
         series = series.reshape(-1, 1)
-        onehot_encoder = OneHotEncoder(sparse=False)
-        onehot_encoded = onehot_encoder.fit(series)
+        onehot_encoder = OneHotEncoder(sparse_output=False)
+        onehot_encoder.fit(series)
 
         series = series.reshape(-1)
 
@@ -70,7 +63,7 @@ def generate_single_output_data(file_path,batch_size,time_steps):
         
 def fit_model(X, Y, bs, nb_epoch, model):
         y = Y
-        optim = keras.optimizers.Adam(lr=1e-3, beta_1=0.9, beta_2=0.999, epsilon=1e-8, decay=0, amsgrad=False)
+        optim = keras.optimizers.Adam(learning_rate=1e-3, beta_1=0.9, beta_2=0.999, epsilon=1e-8)
         model.compile(loss=loss_fn, optimizer=optim)
         checkpoint = ModelCheckpoint(arguments.name, monitor='loss', verbose=1, save_best_only=True, mode='min', save_weights_only=True)
         csv_logger = CSVLogger(arguments.log_file, append=True, separator=';')
@@ -79,19 +72,25 @@ def fit_model(X, Y, bs, nb_epoch, model):
         callbacks_list = [checkpoint, csv_logger, early_stopping]
         #callbacks_list = [checkpoint, csv_logger]
         model.fit(X, y, epochs=nb_epoch, batch_size=bs, verbose=1, shuffle=True, callbacks=callbacks_list)
- 
 
-                
-                
+
+
 arguments = parser.parse_args()
 print(arguments)
 
-batch_size=128
+batch_size=1200
 sequence_length=64
-num_epochs=20
+num_epochs=1
 
 X,Y = generate_single_output_data(arguments.data,batch_size, sequence_length)
 print(Y.shape[1])
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("Using device:", device)
 model = getattr(models, arguments.model_name)(batch_size, sequence_length, Y.shape[1])
+
+model.to(device)
+X = torch.tensor(data=X, dtype=torch.int32, device=device)
+Y = torch.tensor(data=Y, dtype=torch.float, device=device)
+
 fit_model(X, Y, batch_size,num_epochs , model)
 
