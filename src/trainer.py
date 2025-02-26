@@ -29,6 +29,15 @@ parser.add_argument('-name', action='store', default="model1",
 parser.add_argument('-model_name', action='store', default=None,
                     dest='model_name',
                     help='name of the model to call')
+parser.add_argument('-epochs', action='store', default=10,
+                    dest='epochs',
+                    help='number of epochs to train')
+parser.add_argument('-batch_size', action='store', default=1200,
+                    dest='batch_size',
+                    help='size of the training batch')
+parser.add_argument('-seq_len', action='store', default=64,
+                    dest='seq_len',
+                    help='sequence length')
 parser.add_argument('-log_file', action='store',
                     dest='log_file',
                     help='Log file')
@@ -82,15 +91,15 @@ batch_size=1200
 sequence_length=64
 num_epochs=1
 
-X,Y = generate_single_output_data(arguments.data,batch_size, sequence_length)
+X,Y = generate_single_output_data(arguments.data, arguments.batch_size, arguments.seq_len)
 print(Y.shape[1])
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using device:", device)
-model = getattr(models, arguments.model_name)(batch_size, sequence_length, Y.shape[1])
+model = getattr(models, arguments.model_name)(arguments.batch_size, arguments.seq_len, Y.shape[1])
 
 model.to(device)
 X = torch.tensor(data=X, dtype=torch.int32, device=device)
 Y = torch.tensor(data=Y, dtype=torch.float, device=device)
 
-fit_model(X, Y, batch_size,num_epochs , model)
+fit_model(X, Y, batch_size, arguments.epochs, model)
 

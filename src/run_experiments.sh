@@ -24,6 +24,9 @@ do
     output_dir="$compressed_dir/$basename"
     recon_file_name="$output_dir/$1.reconstructed.txt"
     params_file="$data_dir/$basename.param.json"
+    epochs=10
+    batch_size=1200
+    seq_len=64
     echo $params_file
     output_prefix="$output_dir/$1.compressed"
     mkdir -p "$output_dir"
@@ -42,7 +45,7 @@ do
     mkdir -p "$logs_dir/$basename" 
     echo "Starting training ..." | tee -a $log_file
     
-    python trainer.py -model_name $1 -d $f -gpu $2 -name $model_file -log_file $log_file
+    python trainer.py -model_name $1 -d $f -gpu -epochs $epochs -batch_size $batch_size -seq_len $seq_len $2 -name $model_file -log_file $log_file
     
     
     # Perform Compression
